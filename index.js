@@ -23,6 +23,7 @@ client.on('message', msg => {
     let args = msg.content.slice(prefix.length).trim().split(/ +/);
     let cmd = args.shift();
     let data = args;
+    msg.delete();
     handleCommand(cmd, msg, data);
 
 })
@@ -66,7 +67,7 @@ function memeMaker(msg, imageTemplate, text) {
     }
 
     AddTextToImage(textSettings, imageSettings, (img) => {
-        msg.reply('Your meme:', {
+        msg.channel.send( {
             files: [
                 img
             ]
@@ -74,13 +75,6 @@ function memeMaker(msg, imageTemplate, text) {
     })
 
 }
-
-
-
-
-
-
-
 
 
 function AddTextToImage(textSettings, imageSettings, callback) {
