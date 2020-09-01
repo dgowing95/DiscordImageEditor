@@ -23,7 +23,6 @@ client.on('message', msg => {
     let args = msg.content.slice(prefix.length).trim().split(/ +/);
     let cmd = args.shift();
     let data = args;
-    msg.delete();
     handleCommand(cmd, msg, data);
 
 })
@@ -32,6 +31,9 @@ client.login(process.env.token);
 
 function handleCommand(cmd, msg, data) {
     switch (cmd) {
+        case 'list' :
+            listTemplates(msg);
+            break;
         case 'add' :
             addTemplate(msg, data);
             break;
@@ -51,6 +53,7 @@ function addTemplate(msg, data) {
         return;
     }
     let image = msg.attachments.first();
+
     if (!image.name.includes('.jpg')) {
         msg.reply('The image must use a .jpg extension.');
         return;
@@ -59,20 +62,51 @@ function addTemplate(msg, data) {
     let filename = data.join('-');
     const file = fs.createWriteStream(`./templates/${filename}.jpg`);
 
-    https.get(image.url, (response) => {
+    let url = '';
+    if ("proxyURL" in image) {
+        url = image.proxyURL;
+    } else {
+        url = image.url;
+    }
+
+    https.get(url, (response) => {
         response.pipe(file);
         msg.channel.send(`Template '${filename}' is now ready for use. !ezm ${filename} your text here`);
+        msg.delete();
     }).on('error', function(e) {
         msg.reply('There was an issue downloading your attachment, please try again');
         if (fs.existsSync(`./templates/${filename}.jpg`)) {
             fs.unlinkSync(`./templates/${filename}.jpg`);
         }
     })
-    //fs.writeFile('./templates')
 
 }
 
+function listTemplates(msg) {
+    //msg.delete();
+
+    
+
+    let folder = './templates';
+    fs.readdir(folder, (err, files) => {
+        if (err) {
+            console.log(err);
+            msg.channel.send('An error occurred while reading the available templates');
+            return;
+        }
+
+        let message = 'Available templates are: \n';
+        files.forEach(file => {
+            if (file !== undefined) {
+                message += file.replace('.jpg', '') + '\n';
+            }
+        })
+        msg.channel.send(message);
+    })
+}
+
 function memeMaker(msg, imageTemplate, text) {
+    msg.delete();
 
     if (!fs.existsSync(`./templates/${imageTemplate}.jpg`)) {
         msg.reply(`I can't find a template called ${imageTemplate}.jpg`);
