@@ -1,5 +1,5 @@
 require('dotenv').config();
-
+var https = require('https')
 var Jimp = require('jimp');
 var Discord = require('discord.js');
 const client = new Discord.Client();
@@ -33,7 +33,7 @@ client.login(process.env.token);
 function handleCommand(cmd, msg, data) {
     switch (cmd) {
         case 'add' :
-            msg.reply('add');
+            addTemplate(msg, data);
             break;
         default:
             if (data.length < 1) {
@@ -45,9 +45,36 @@ function handleCommand(cmd, msg, data) {
     }
 }
 
+function addTemplate(msg, data) {
+    if (msg.attachments.size !== 1) {
+        msg.reply('You need to attach a single .jpg along with the message. !ezm add template-name');
+        return;
+    }
+    let image = msg.attachments.first();
+    if (!image.name.includes('.jpg')) {
+        msg.reply('The image must use a .jpg extension.');
+        return;
+    }
+
+    let filename = data.join('-');
+    const file = fs.createWriteStream(`./templates/${filename}.jpg`);
+
+    https.get(image.url, (response) => {
+        response.pipe(file);
+        msg.channel.send(`Template '${filename}' is now ready for use. !ezm ${filename} your text here`);
+    }).on('error', function(e) {
+        msg.reply('There was an issue downloading your attachment, please try again');
+        if (fs.existsSync(`./templates/${filename}.jpg`)) {
+            fs.unlinkSync(`./templates/${filename}.jpg`);
+        }
+    })
+    //fs.writeFile('./templates')
+
+}
+
 function memeMaker(msg, imageTemplate, text) {
 
-    if (!fs.existsSync(`./base/${imageTemplate}.jpg`)) {
+    if (!fs.existsSync(`./templates/${imageTemplate}.jpg`)) {
         msg.reply(`I can't find a template called ${imageTemplate}.jpg`);
         return;
     }
@@ -61,7 +88,7 @@ function memeMaker(msg, imageTemplate, text) {
     };
 
     let imageSettings = {
-        input: `./base/${imageTemplate}.jpg`,
+        input: `./templates/${imageTemplate}.jpg`,
         output: 'new.jpg',
         quality: 100
     }
