@@ -65,10 +65,10 @@ function memeMaker(msg, imageTemplate, text) {
         quality: 100
     }
 
-    AddTextToImage(textSettings, imageSettings, () => {
+    AddTextToImage(textSettings, imageSettings, (img) => {
         msg.reply('Your meme:', {
             files: [
-                './new.jpg'
+                img
             ]
         })
     })
@@ -102,10 +102,10 @@ function AddTextToImage(textSettings, imageSettings, callback) {
         }, maxWidth, maxHeight);
 
     })
-    .then(tpl => (tpl.quality(imageSettings.quality).write(imageSettings.output)))
-    .then(tpl => { 
-        console.log('exported file: ' + imageSettings.output);
-        callback();
+    .then(tpl => (tpl.getBufferAsync(Jimp.MIME_JPEG)))
+    .then(imageBuffer => { 
+        console.log('Image generated');
+        callback(imageBuffer);
       })
     .catch(err => {
         console.error(err);
