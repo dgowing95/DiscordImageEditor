@@ -1,0 +1,22 @@
+services:
+  - docker
+
+env:
+  global:
+  - access-key-id
+  - secret-access-key
+
+
+script:
+  - docker build -t ezmeme . 
+
+deploy:
+  provider: elasticbeanstalk
+  access_key_id:
+    secure: "Encrypted <access-key-id>="
+  secret_access_key:
+    secure: "Encypted <secret-access-key>="
+  region: "us-east-1"
+  app: "Ezmeme"
+  env: "Ezmeme-env"
+  bucket_name: "the-target-S3-bucket"
