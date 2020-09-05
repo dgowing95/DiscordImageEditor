@@ -1,14 +1,21 @@
-require('dotenv').config();
-var https = require('https')
+var request = require('request')
 var Jimp = require('jimp');
 var Discord = require('discord.js');
 const client = new Discord.Client();
 const fs = require('fs');
+const AWS = require('aws-sdk');
+AWS.config.update({region: 'EU-WEST-2', accessKeyId: process.env.accessKeyID, secretAccessKey: process.env.secretAccessKey});
+
+
+const DatabaseController = require('./controllers/database.js');
+const { rejects } = require('assert');
 
 const prefix = '!ezm';
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
+    var db = new DatabaseController();
+    db.connect();
 })
 
 client.on('error', (err) => {
@@ -59,8 +66,7 @@ function addTemplate(msg, data) {
         return;
     }
 
-    let filename = data.join('-');
-    const file = fs.createWriteStream(`./templates/${filename}.jpg`);
+    let templateName = data.join('-');
 
     let url = '';
     if ("proxyURL" in image) {
@@ -68,19 +74,41 @@ function addTemplate(msg, data) {
     } else {
         url = image.url;
     }
+    let guildID = 8;
 
-    https.get(url, (response) => {
-        response.pipe(file);
-        msg.channel.send(`Template '${filename}' is now ready for use. !ezm ${filename} your text here`);
-        msg.delete();
-    }).on('error', function(e) {
-        msg.reply('There was an issue downloading your attachment, please try again');
-        if (fs.existsSync(`./templates/${filename}.jpg`)) {
-            fs.unlinkSync(`./templates/${filename}.jpg`);
-        }
-    })
+
+    UploadFromUrlToS3(
+        url,
+        `${guildID}/${image.name}` )
+        .then(function() {
+            console.log('image was saved...');
+        }).catch(function(err) {
+            console.log('image was not saved!',err);
+        });
 
 }
+
+
+function UploadFromUrlToS3(url,destPath){
+    return new Promise((resolve,reject)=> {            
+        request({
+            url: url,
+            encoding: null
+        }, function(err, res, body) {        
+            if (err){
+                reject(err);
+            }
+            resolve(new AWS.S3().putObject({
+                Bucket: 'ezmeme-templates',
+                Key: destPath,
+                Body: body,
+                ContentType: res.headers['content-type'],
+                ContentLength: res.headers['content-length']
+            }).promise());
+        });
+    });
+}
+
 
 function listTemplates(msg) {
     //msg.delete();

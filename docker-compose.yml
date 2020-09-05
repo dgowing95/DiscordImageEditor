@@ -1,0 +1,7 @@
+version: "3.8"
+services:
+  bot:
+    build: .
+    volumes:
+      - ./templates:/app/templates
+    env_file: .env
