@@ -1,5 +1,11 @@
 {
     "AWSEBDockerrunVersion": "1",
     "Entrypoint": "node",
-    "Command": "index.js"
-  }
+    "Command": "index.js",
+    "Ports": [
+        {
+          "ContainerPort": "80",
+          "HostPort": "80"
+        }
+      ]
+}
