@@ -25,14 +25,6 @@ class DatabaseController {
 
     storeTemplate(guildID, name, image, user) {
         let conn = this.getConnection();
-        //guildID, name, base64, user
-
-        // let guildID = 69;
-        // let name = 'firstMeme';
-        // let image = 'fdfdfdf';
-        // let user = 'Me';
-
-
         conn.query(
             'INSERT INTO templates (gid, name, file, user) VALUES (?, ?, ?, ?)',
             [
@@ -44,14 +36,33 @@ class DatabaseController {
             function (error, results, fields) {
                 if (error) {
                     throw error;
+                    return false;
                 }
                 if (results) {
-                    console.log(results);
-                } else {
-                    console.log('no output');
+                    return true;
                 }
             }
         );
+    }
+
+    retrieveTemplate(templateName, guildID, callback) {
+        let conn = this.getConnection();
+        conn.query(
+            'SELECT file FROM templates WHERE name = ? AND gid = ? LIMIT 1',
+            [
+                templateName,
+                guildID
+            ],
+            function(error, results, fields) {
+                if (error) { throw error; }
+                if (results) {
+                    callback(results[0].file)
+                    return;
+                } else {
+                    return null;
+                }
+            }
+        )
     }
 }
 module.exports = DatabaseController;

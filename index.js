@@ -6,15 +6,14 @@ const fs = require('fs');
 const AWS = require('aws-sdk');
 AWS.config.update({region: 'EU-WEST-2', accessKeyId: process.env.accessKeyID, secretAccessKey: process.env.secretAccessKey});
 
-
 const DatabaseController = require('./controllers/database.js');
+var db = new DatabaseController();
 const { rejects } = require('assert');
 
 const prefix = '!ezm';
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
-    var db = new DatabaseController();
     db.connect();
 })
 
@@ -56,34 +55,47 @@ function handleCommand(cmd, msg, data) {
 
 function addTemplate(msg, data) {
     if (msg.attachments.size !== 1) {
-        msg.reply('You need to attach a single .jpg along with the message. !ezm add template-name');
+        msg.reply('You need to attach an image along with the message. !ezm add template-name');
         return;
     }
     let image = msg.attachments.first();
 
-    if (!image.name.includes('.jpg')) {
-        msg.reply('The image must use a .jpg extension.');
+    //Check it looks like an image
+    if (!image.name.includes('.jpg') && !image.name.includes('.jpeg')  && !image.name.includes('.png')) {
+        msg.reply('Image must use a .jpg .jpeg or .png extension');
         return;
     }
 
+    //Remove spaces from the name they've given this template
     let templateName = data.join('-');
 
+    //Retrieve the URL from discord. Sometimes it's proxied
     let url = '';
     if ("proxyURL" in image) {
         url = image.proxyURL;
     } else {
         url = image.url;
     }
-    let guildID = 8;
 
+    //Create the key we'll name this template as on S3
+    //Prefix with the guild id and then we'll just reuse the file name
+    let objectKey = `${msg.guild.id}/${image.name}`
 
     UploadFromUrlToS3(
         url,
-        `${guildID}/${image.name}` )
+        objectKey )
         .then(function() {
-            console.log('image was saved...');
+
+            //Store reference in database
+            let success = db.storeTemplate(msg.guild.id, templateName, objectKey, msg.author.id)
+            if (success) {
+                msg.channel.send(`Template ${templateName} is now ready. Use '!ezm ${templateName} your text here' to use it!`)
+                msg.delete();
+            } else {
+                msg.channel.send(`Help, I encounted an error while trying to store this image in the database.`)
+            }
         }).catch(function(err) {
-            console.log('image was not saved!',err);
+            console.log('Help, I encountered an error while trying to download and store that image.',err);
         });
 
 }
@@ -112,9 +124,6 @@ function UploadFromUrlToS3(url,destPath){
 
 function listTemplates(msg) {
     //msg.delete();
-
-    
-
     let folder = './templates';
     fs.readdir(folder, (err, files) => {
         if (err) {
@@ -136,32 +145,50 @@ function listTemplates(msg) {
 function memeMaker(msg, imageTemplate, text) {
     msg.delete();
 
-    if (!fs.existsSync(`./templates/${imageTemplate}.jpg`)) {
-        msg.reply(`I can't find a template called ${imageTemplate}.jpg`);
-        return;
-    }
-    let textSettings = {
-        font: Jimp.FONT_SANS_64_WHITE,
-        text: text,
-        alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
-        alignmentY: Jimp.VERTICAL_ALIGN_TOP,
-        placementX: 20,
-        placementY: 40,
-    };
+    db.retrieveTemplate(imageTemplate, msg.guild.id, (template) => {
+        if (!template) {
+            msg.reply(`I can't find a template called ${imageTemplate}`);;
+        } else {
+            let s3 = new AWS.S3();
+            let imageBuffer = undefined;
+            s3.getObject({
+                Bucket: 'ezmeme-templates',
+                Key: template
+            }, function(err, data) {
+                if (err) {throw err}
+                console.log(data.Body);
+                imageBuffer = data.Body;
 
-    let imageSettings = {
-        input: `./templates/${imageTemplate}.jpg`,
-        output: 'new.jpg',
-        quality: 100
-    }
+                let textSettings = {
+                    font: Jimp.FONT_SANS_64_WHITE,
+                    text: text,
+                    alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+                    alignmentY: Jimp.VERTICAL_ALIGN_TOP,
+                    placementX: 20,
+                    placementY: 40,
+                };
+            
+                let imageSettings = {
+                    input: imageBuffer,
+                    output: 'new.jpg',
+                    quality: 100
+                }
+            
+                AddTextToImage(textSettings, imageSettings, (img) => {
+                    msg.channel.send( {
+                        files: [
+                            img
+                        ]
+                    })
+                })
+            })
+        
 
-    AddTextToImage(textSettings, imageSettings, (img) => {
-        msg.channel.send( {
-            files: [
-                img
-            ]
-        })
-    })
+        }
+    
+
+    });
+
 
 }
 
