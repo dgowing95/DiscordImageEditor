@@ -1,14 +1,15 @@
 services:
-  - docker
-
+- docker
 script:
-  - docker build -t ezmeme . 
-
+- docker build -t ezmeme .
 deploy:
   provider: elasticbeanstalk
-  access_key_id: $ACCESS_KEY
-  secret_access_key: $SECRET_KEY
-  region: "us-east-1"
-  app: "Ezmeme"
-  env: "Ezmeme-env"
-  bucket_name: "elasticbeanstalk-eu-west-2-688621974378"
+  access_key_id:
+    secure: "S8v6eIsb0w17WUVDAKTLqTRXR9XfEWZX+1xEzE3mWk7Jg93B82AiH0uOaM7XqRwmE4kBG14rPHrATPKFV2xzaaBkMt3TJPTItfLpkyG6liOWT8CTNWuH/BZEnb1ZTaxHN/UgN5S3FlBLWs/+tk8cb8winjT2CSjnQ7vxLNrjjdk60iotZrlrs+yzsrblIeuIZTX1ow3HG01zzL6Uu4OOfIhqkt6wMgeq5fvBAlaexIqck/VhcZD7rNFNH8TZmvvfuGvX7um/0yfrfZDKR1vjFqzW0XMdkjhjalP8td2yaHicQRa604XS65fCPHdQACNeH3Oj1V+c29lIhQJ8AZg2X9Xsok1Wwh2Ajw4e97DZBtesHnLgFOfIpGWGD0OQ6KV74MC9SNld0O+0VAjhM/ZCxWXyHFYEwRMXARU9XXhbypKLaFnglYB8//mzMIyPBbIF9aqVT8wntUXL2Yti10+NtJqB7Xi6MlFgaYrZJkZA4Y7L+vnHxFEn15Y3oPbsLvZAf68+sHUHXIFtUY88oi/muNv6G2tC/LJnFTLN5xdAottJ4evYVNK3JTG7C7nL++6ZXAYOvjC5392/4FeApujaHKq+Pwqp8ywkUHyP8kYVPA23udnlrFaPUxBdHGiy6hAgYRW4JPJXBTTHBsrivL5pArDCYhtX6PVL1k7sn/WbYkE="
+  secret_access_key:
+    secure: "WDOFQQrfAJadmkQfspa2KfuoiVIV1x5xW+tw6hB5TbodSnQCLk0Dg2qOJDtgVtCwr7BDyBWQ9eb52gF9niBf+YvTbsNeLpcxKA1eMtzRJ0O5xMmg1Bl1R+911QakWkzuE+wC9ijsHb12If66qLXue1Oi9kEBfKmcj8xyZN7hqzIMEhQnBGd1VqEfwDZhpcpE983AFbrqdDMxvKlV7zsP+XVTXSS9++OjrNLDwcEx0reESTaNq3W/u2gAfAYRaKWbFkJd3BS08InYIF0Beqtp0qoHaEqWeoZBFbtXXYDgtfpgBx1meH/OcAQdG2F3bGfxdsUF6u7g+RCxdwJTJOGWtk8K8Ow+ClZlenE96ZADWGFtDHC88+HFJSe7dyIFVfA0CCYDJ1TXTHwnK7dfNVwDVCrTQxS7UQpeSFL9KD7nntziLJdX7NkAzo0yRWjf34Wvl+SbQeg504lMWCafT7jRYRci0up1qmyAHQz3AZeilM5LFIiLUL63r+baGbz+rhG4GQuz4MRmMHUVx81UXUQkqM3SKyTYb7p70wqKFzcQZJRM640m+F7ntiXpArzbspjqrTTj8krAcusZJmKCydvUQD2aPll+jNUKoU6hpx4RZL8rdWexs5UG3le/bkM1fogtA1Dipe0ddr80mNJ6LxJzKecfsmsHnNZOObx6pgMPPBM="
+  region: us-east-1
+  app: Ezmeme
+  env: Ezmeme-env
+  bucket_name: elasticbeanstalk-eu-west-2-688621974378
+  
