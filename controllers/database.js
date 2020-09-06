@@ -134,11 +134,7 @@ class DatabaseController {
             'INSERT INTO guilds (gid) VALUES (?)',
             guildID,
             function (error, results, fields) {
-                if (results.affectedRows == 1) {
-                    callback(true);
-                } else {
-                    callback(false);
-                }
+                callback(true);
             }
         )
     }
