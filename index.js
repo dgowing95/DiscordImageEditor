@@ -83,6 +83,11 @@ function addTemplate(msg, data) {
     let image = msg.attachments.first();
     console.log(image);
 
+    if (image.size == null || (image.size /1000) > 5000 ) {
+        msg.reply('Filesize too large, please reduce the size of the image and try again.')
+        return;
+    }
+
     //Remove spaces from the name they've given this template
     let templateName = data.join('-');
 
@@ -109,7 +114,7 @@ function addTemplate(msg, data) {
                 msg.channel.send(`Template ${templateName} is now ready. Use '!ezm ${templateName} your text here' to use it!`)
             })
         } else {
-            msg.channel.send('That isnt an image');
+            msg.channel.send("I'm not able to process those sorts of files. Please make sure you're uploading images.");
         }
 
 
