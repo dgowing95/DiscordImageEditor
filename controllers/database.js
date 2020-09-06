@@ -73,15 +73,14 @@ class DatabaseController {
         let conn = this.getConnection();
 
         conn.query(
-            'SELECT count(id) FROM templates WHERE gid = ? AND active = 1', 
+            'SELECT count(id) as total FROM templates WHERE gid = ? AND active = 1', 
             guildID,
             function(error, results, fields) {
-                if (error || !results) {
+                if (error || results.length == 0) {
                     if (error) { throw error; }
                     return false;
                 } else {
-                    console.log('test: ', results);
-                    return results.count;
+                    callback(results[0].total);
                 }
             }
         )
@@ -127,5 +126,91 @@ class DatabaseController {
             }
         )
     }
+
+    addGuild(guildID, callback) {
+        let conn = this.getConnection();
+
+        conn.query(
+            'INSERT INTO guilds (gid) VALUES (?)',
+            guildID,
+            function (error, results, fields) {
+                if (results.affectedRows == 1) {
+                    callback(true);
+                } else {
+                    callback(false);
+                }
+            }
+        )
+    }
+
+    getGuildCapacity(guildID, callback) {
+        let conn = this.getConnection();
+
+        conn.query(
+            'SELECT capacity FROM guilds WHERE gid = ?',
+            guildID,
+            function (error, results, fields) {
+                if (error) {throw error;}
+                callback(results[0].capacity);
+            }
+        )
+    }
+
+
+    blockChannelInGuild(guildID, channelID, callback) {
+        let conn = this.getConnection();
+
+        conn.query(
+            'INSERT INTO blocked_channels (gid, channel_id) VALUES (?,?)',
+            [   
+                guildID,
+                channelID
+            ],
+            function (error, results, fields) {
+                if (results.affectedRows == 1) {
+                    callback(true);
+                } else {
+                    callback(false);
+                } 
+            }
+        )
+    }
+
+    isChannelBlocked(guildID, channelID, callback) {
+        let conn = this.getConnection();
+
+        conn.query(
+            'SELECT channel_id FROM blocked_channels WHERE gid = ? AND channel_id = ? LIMIT 1',
+            [   
+                guildID,
+                channelID
+            ],
+            function (error, results, fields) {
+
+                if (results.length == 0) { callback(false); return; }
+                callback(true);
+            }
+        )
+    }
+
+    removeBlockedChannel(guildID, channelID, callback) {
+        let conn = this.getConnection();
+
+        conn.query(
+            'DELETE FROM blocked_channels WHERE gid = ? AND channel_id = ?',
+            [   
+                guildID,
+                channelID
+            ],
+            function (error, results, fields) {
+                if (results.affectedRows == 1) {
+                    callback(true);
+                } else {
+                    callback(false);
+                } 
+            }
+        )
+    }
+
 }
 module.exports = DatabaseController;

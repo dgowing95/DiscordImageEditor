@@ -20,6 +20,13 @@ const allowedTypes = [
     'image/tiff'
 ];
 
+client.on("guildCreate", guild => {
+    db.addGuild(guild.id, (success) => {
+        if (success) {
+            console.log(`${guild.name} has just added the bot.`)
+        }
+    })
+})
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -37,8 +44,16 @@ client.on('message', msg => {
 
     let args = msg.content.slice(prefix.length).trim().split(/ +/);
     let cmd = args.shift();
-    let data = args;
-    handleCommand(cmd, msg, data);
+    
+    db.isChannelBlocked(msg.guild.id, msg.channel.id, (blocked) => {
+        if (blocked && cmd !== 'unblock'){
+            return;
+        }
+        let data = args;
+        handleCommand(cmd, msg, data);
+    })
+    
+    
 
 })
 
@@ -49,11 +64,26 @@ function handleCommand(cmd, msg, data) {
         case 'list' :
             listTemplates(msg);
             break;
+        case 'block' :
+            blockChannel(msg);
+            break;
+        case 'unblock' :
+            unblockChannel(msg);
+            break;
         case 'remove' :
             disableTemplate(msg, data)
             break;
         case 'add' :
-            addTemplate(msg, data);
+            atCapacity(msg.guild.id, (val) => {
+                if (val) {
+                    msg.reply('This server has reached the maximum number of templates. Please remove some with !ezm remove template-name in order to add more.');
+                    return;
+                } else {
+                    addTemplate(msg, data);
+                }
+                
+            });
+            
             break;
         default:
             if (data.length < 1) {
@@ -62,7 +92,38 @@ function handleCommand(cmd, msg, data) {
             }
             let text = data.join(' ');
             memeMaker(msg, cmd, text)
+
+            
     }
+}
+
+function blockChannel(msg) {
+    let member = msg.member;
+    if (!member.hasPermission('MANAGE_CHANNELS')) {
+        return;
+    }
+    let channelID = msg.channel.id;
+
+    db.blockChannelInGuild(msg.channel.guild.id, channelID, (success) => {
+        if (success) {
+            msg.channel.send('EZMeme will no longer watch this channel for memes.');
+        }
+    })
+
+}
+
+function unblockChannel(msg) {
+    let member = msg.member;
+    if (!member.hasPermission('MANAGE_CHANNELS')) {
+        return;
+    }
+    let channelID = msg.channel.id;
+
+    db.removeBlockedChannel(msg.channel.guild.id, channelID, (success) => {
+        if (success) {
+            msg.channel.send('EZMeme is now tracking this channel for memes');
+        }
+    })
 }
 
 function disableTemplate(msg, data) {
@@ -75,13 +136,21 @@ function disableTemplate(msg, data) {
     })
 }
 
+function atCapacity(guildID, callback) {
+    db.getGuildCapacity(guildID, (capacity) => {
+        db.countTemplates(guildID, (count) => {
+            callback(count >= capacity);
+        })
+    })
+}
+
 function addTemplate(msg, data) {
     if (msg.attachments.size !== 1) {
         msg.reply('You need to attach an image along with the message. !ezm add template-name');
         return;
     }
+
     let image = msg.attachments.first();
-    console.log(image);
 
     if (image.size == null || (image.size /1000) > 5000 ) {
         msg.reply('Filesize too large, please reduce the size of the image and try again.')
@@ -170,7 +239,9 @@ function UploadFromUrlToS3(url,destPath, callback){
 function listTemplates(msg) {
     let message = 'Available templates are: \n';
     db.listTemplates(msg.guild.id, (templates) => {
-        message += templates.map(name => name + '\n');
+        message += templates.map((name) => {
+            return name + '\n'
+        }).join('');
         msg.channel.send(message);
     })
 }
