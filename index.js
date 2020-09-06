@@ -181,6 +181,7 @@ function addTemplate(msg, data) {
             //Store reference in database & output message to channel
             db.storeTemplate(msg.guild.id, templateName, objectKey, msg.author.id, () => {
                 msg.channel.send(`Template ${templateName} is now ready. Use '!ezm ${templateName} your text here' to use it!`)
+                msg.delete();
             })
         } else {
             msg.channel.send("I'm not able to process those sorts of files. Please make sure you're uploading images.");
@@ -291,6 +292,7 @@ function memeMaker(msg, imageTemplate, text) {
                             img
                         ]
                     })
+                    msg.delete();
                 })
             })
         
