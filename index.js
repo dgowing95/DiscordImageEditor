@@ -11,6 +11,15 @@ var db = new DatabaseController();
 const { rejects } = require('assert');
 
 const prefix = '!ezm';
+const allowedTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/bmp',
+    'image/gif',
+    'image/pjpeg',
+    'image/tiff'
+];
+
 
 client.on('ready', () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -40,6 +49,9 @@ function handleCommand(cmd, msg, data) {
         case 'list' :
             listTemplates(msg);
             break;
+        case 'remove' :
+            disableTemplate(msg, data)
+            break;
         case 'add' :
             addTemplate(msg, data);
             break;
@@ -53,18 +65,23 @@ function handleCommand(cmd, msg, data) {
     }
 }
 
+function disableTemplate(msg, data) {
+    db.disableTemplate(msg.guild.id, data, (rowAffected) => {
+        if (rowAffected) {
+            msg.channel.send(`${data} has been removed from your templates.`);
+        } else {
+            msg.channel.send(`You dont have a template called ${data}`);
+        }
+    })
+}
+
 function addTemplate(msg, data) {
     if (msg.attachments.size !== 1) {
         msg.reply('You need to attach an image along with the message. !ezm add template-name');
         return;
     }
     let image = msg.attachments.first();
-
-    //Check it looks like an image
-    if (!image.name.includes('.jpg') && !image.name.includes('.jpeg')  && !image.name.includes('.png')) {
-        msg.reply('Image must use a .jpg .jpeg or .png extension');
-        return;
-    }
+    console.log(image);
 
     //Remove spaces from the name they've given this template
     let templateName = data.join('-');
@@ -81,84 +98,101 @@ function addTemplate(msg, data) {
     //Prefix with the guild id and then we'll just reuse the file name
     let objectKey = `${msg.guild.id}/${image.name}`
 
-    UploadFromUrlToS3(
-        url,
-        objectKey )
-        .then(function() {
 
-            //Store reference in database
-            let success = db.storeTemplate(msg.guild.id, templateName, objectKey, msg.author.id)
-            if (success) {
+    UploadFromUrlToS3(
+    url,
+    objectKey,
+    function(success) {
+        if (success) {
+            //Store reference in database & output message to channel
+            db.storeTemplate(msg.guild.id, templateName, objectKey, msg.author.id, () => {
                 msg.channel.send(`Template ${templateName} is now ready. Use '!ezm ${templateName} your text here' to use it!`)
-                msg.delete();
-            } else {
-                msg.channel.send(`Help, I encounted an error while trying to store this image in the database.`)
-            }
-        }).catch(function(err) {
-            console.log('Help, I encountered an error while trying to download and store that image.',err);
-        });
+            })
+        } else {
+            msg.channel.send('That isnt an image');
+        }
+
+
+    });
 
 }
 
 
-function UploadFromUrlToS3(url,destPath){
-    return new Promise((resolve,reject)=> {            
-        request({
-            url: url,
-            encoding: null
-        }, function(err, res, body) {        
-            if (err){
-                reject(err);
+function UploadFromUrlToS3(url,destPath, callback){
+
+    request({
+        url: url,
+        encoding: null
+    }, function(err, res, body) {
+        if (err) {throw err;}
+
+        //Check mime type of file
+        require('file-type').fromBuffer(body)
+        .then((value) => {
+            //file-type returns undefined if it cannot find a match
+            if (value == null) {
+                callback(false);
+                return;
             }
-            resolve(new AWS.S3().putObject({
-                Bucket: 'ezmeme-templates',
-                Key: destPath,
-                Body: body,
-                ContentType: res.headers['content-type'],
-                ContentLength: res.headers['content-length']
-            }).promise());
-        });
-    });
+
+            //Check if mime matches allowed types
+            let filetype = value.mime;
+            if (allowedTypes.includes(filetype)) {
+                //upload to s3
+                new AWS.S3().putObject({
+                    Bucket: 'ezmeme-templates',
+                    Key: destPath,
+                    Body: body,
+                    ContentType: res.headers['content-type'],
+                    ContentLength: res.headers['content-length']
+                }, (err, data) => {
+                    if (err) {throw err;}
+                    callback(true);
+                })
+            } else {
+                callback(false);
+            }
+        })
+        .catch(err => {throw err});
+
+
+
+    })
+
 }
 
 
 function listTemplates(msg) {
-    //msg.delete();
-    let folder = './templates';
-    fs.readdir(folder, (err, files) => {
-        if (err) {
-            console.log(err);
-            msg.channel.send('An error occurred while reading the available templates');
-            return;
-        }
-
-        let message = 'Available templates are: \n';
-        files.forEach(file => {
-            if (file !== undefined) {
-                message += file.replace('.jpg', '') + '\n';
-            }
-        })
+    let message = 'Available templates are: \n';
+    db.listTemplates(msg.guild.id, (templates) => {
+        message += templates.map(name => name + '\n');
         msg.channel.send(message);
     })
 }
 
 function memeMaker(msg, imageTemplate, text) {
-    msg.delete();
-
+    //Retrieve the template from the database
+    //passes the db result into a callback
     db.retrieveTemplate(imageTemplate, msg.guild.id, (template) => {
+        //Check if the template exists
         if (!template) {
-            msg.reply(`I can't find a template called ${imageTemplate}`);;
+            msg.reply(`I can't find a template called ${imageTemplate}`);
         } else {
+
+            //Attempt to retrieve an object from S3 with the db's returned key name
+            //Callback passes the response into the meme maker
             let s3 = new AWS.S3();
             let imageBuffer = undefined;
             s3.getObject({
                 Bucket: 'ezmeme-templates',
                 Key: template
             }, function(err, data) {
-                if (err) {throw err}
-                console.log(data.Body);
-                imageBuffer = data.Body;
 
+                //if no object returned, throw error
+                if (err) {throw err}
+
+                //Setup meme maker config
+                imageBuffer = data.Body;
                 let textSettings = {
                     font: Jimp.FONT_SANS_64_WHITE,
                     text: text,
@@ -174,6 +208,7 @@ function memeMaker(msg, imageTemplate, text) {
                     quality: 100
                 }
             
+                //Generate the meme, and pass it into a callback that returns the image
                 AddTextToImage(textSettings, imageSettings, (img) => {
                     msg.channel.send( {
                         files: [
