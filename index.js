@@ -9,6 +9,7 @@ AWS.config.update({region: 'EU-WEST-2', accessKeyId: process.env.accessKeyID, se
 const DatabaseController = require('./controllers/database.js');
 var db = new DatabaseController();
 const { rejects } = require('assert');
+const { resolve } = require('path');
 
 const prefix = '!ezm';
 const allowedTypes = [
@@ -18,6 +19,14 @@ const allowedTypes = [
     'image/gif',
     'image/pjpeg',
     'image/tiff'
+];
+
+const fontsAvailable = [
+    Jimp.FONT_SANS_128_WHITE,
+    Jimp.FONT_SANS_64_WHITE,
+    Jimp.FONT_SANS_32_WHITE,
+    Jimp.FONT_SANS_16_WHITE,
+    Jimp.FONT_SANS_8_WHITE,
 ];
 
 client.on("guildCreate", guild => {
@@ -289,12 +298,11 @@ function memeMaker(msg, imageTemplate, text) {
     .then ((imageBuffer) => {
         //Create Meme with Jimp
         let textSettings = {
-            font: Jimp.FONT_SANS_64_WHITE,
             text: text,
             alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
             alignmentY: Jimp.VERTICAL_ALIGN_TOP,
             placementX: 20,
-            placementY: 40,
+            placementY: 10,
         };
 
         //Generate the meme, and pass it into a callback that returns the image
@@ -317,24 +325,73 @@ function memeMaker(msg, imageTemplate, text) {
 }
 
 
+
+async function selectFont(img, text) {
+    let width = img.bitmap.width;
+    let height = img.bitmap.height;
+
+
+    //Loop through largest to smallest font to select the best option
+    let font = fontsAvailable[0];
+    
+    for (let i = 0; i < fontsAvailable.length; i++) {
+        let textHeight = height;
+        try {
+            textHeight = await measureFont(fontsAvailable[i], text, width);
+        } catch (err) {
+            console.log(err);
+        }
+        
+        if (textHeight < height) {
+            font = fontsAvailable[i];
+            break;
+        }
+    }
+    return font;
+}
+
+
+function measureFont(font, text, imageWidth) {
+    return new Promise((resolve, reject) => {
+        Jimp.loadFont(font)
+        .then(font => {
+            return Jimp.measureTextHeight(font, text, imageWidth-40)
+        })
+        .then(height => {
+            resolve(height);
+        })
+        .catch(err => {
+            reject(err);
+        })
+    })
+
+}
+
 function AddTextToImage(textSettings, image) {
     return new Promise((resolve, reject) => {
         Jimp.read(image)
-        .then(img => (
-            Jimp.loadFont(textSettings.font).then(font => ([img, font]))
-        ))
+        .then(async(img) => {
+            let fontToUse
+            try {
+                fontToUse = await selectFont(img, textSettings.text);
+            } catch (error) {
+                fontToUse = fontsAvailable[0];
+                console.log(error);
+            }
+            return Jimp.loadFont(fontToUse).then(font => ([img, font]))
+        })
         .then(data => {
             tpl = data[0];
             font = data[1];
     
             let maxWidth = tpl.bitmap.width - 40;
-            let maxHeight = tpl.bitmap.height - 40;
+            //let maxHeight = tpl.bitmap.height - 40;
     
             return tpl.print(font,textSettings.placementX, textSettings.placementY, {
                 text: textSettings.text,
                 alignmentX: textSettings.alignmentX,
-                alignmentY: textSettings.alignmentY
-            }, maxWidth, maxHeight);
+                alignmentY: 0
+            }, maxWidth, tpl.bitmap.height);
     
         })
         .then(tpl => (tpl.getBufferAsync(Jimp.MIME_JPEG)))
