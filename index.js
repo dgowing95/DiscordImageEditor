@@ -239,98 +239,106 @@ function UploadFromUrlToS3(url,destPath, callback){
 
 function listTemplates(msg) {
     let message = 'Available templates are: \n';
-    db.listTemplates(msg.guild.id, (templates) => {
+
+    db.listTemplates(msg.guild.id)
+
+    .then((templates) => {
         message += templates.map((name) => {
             return name + '\n'
         }).join('');
+        return message;
+    })
+
+    .then((message) => {
         msg.channel.send(message);
+    })
+
+    .catch((err) => {
+        console.log(err);
     })
 }
 
 function memeMaker(msg, imageTemplate, text) {
+    let message = msg;
+    msg.delete();
     //Retrieve the template from the database
-    //passes the db result into a callback
-    db.retrieveTemplate(imageTemplate, msg.guild.id, (template) => {
-        //Check if the template exists
-        if (!template) {
-            msg.reply(`I can't find a template called ${imageTemplate}`);
-        } else {
+    db.retrieveTemplate(imageTemplate, message.guild.id)
 
-            //Attempt to retrieve an object from S3 with the db's returned key name
-            //Callback passes the response into the meme maker
+    .then((objectKey) => {
+        //Attempt to retrieve an object from S3 with the db's returned key name
+        return new Promise((resolve, reject) => {
             let s3 = new AWS.S3();
-            let imageBuffer = undefined;
             s3.getObject({
                 Bucket: 'ezmeme-templates',
-                Key: template
+                Key: objectKey
             }, function(err, data) {
-
-                //if no object returned, throw error
-                if (err) {throw err}
-
-                //Setup meme maker config
-                imageBuffer = data.Body;
-                let textSettings = {
-                    font: Jimp.FONT_SANS_64_WHITE,
-                    text: text,
-                    alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
-                    alignmentY: Jimp.VERTICAL_ALIGN_TOP,
-                    placementX: 20,
-                    placementY: 40,
-                };
-            
-                let imageSettings = {
-                    input: imageBuffer,
-                    output: 'new.jpg',
-                    quality: 100
-                }
-            
-                //Generate the meme, and pass it into a callback that returns the image
-                AddTextToImage(textSettings, imageSettings, (img) => {
-                    msg.channel.send( {
-                        files: [
-                            img
-                        ]
-                    })
-                    msg.delete();
-                })
-            })
-        
-
-        }
     
+                //if no object returned, throw error
+                if (err) {reject (err)}
+                resolve(data.Body);
+            })
+        })
+    })
 
-    });
+    .then ((imageBuffer) => {
+        //Create Meme with Jimp
+        let textSettings = {
+            font: Jimp.FONT_SANS_64_WHITE,
+            text: text,
+            alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+            alignmentY: Jimp.VERTICAL_ALIGN_TOP,
+            placementX: 20,
+            placementY: 40,
+        };
+
+        //Generate the meme, and pass it into a callback that returns the image
+        return AddTextToImage(textSettings, imageBuffer);
+    })
+
+    .then((meme) => {
+        //Send meme to discord
+        message.channel.send( {
+            files: [
+                meme
+            ]
+        })
+    })
+    .catch((err) => {
+        console.log(err);
+    })
 
 
 }
 
 
-function AddTextToImage(textSettings, imageSettings, callback) {
-    Jimp.read(imageSettings.input)
-    .then(img => (
-        Jimp.loadFont(textSettings.font).then(font => ([img, font]))
-    ))
-    .then(data => {
-        tpl = data[0];
-        font = data[1];
-
-        let maxWidth = tpl.bitmap.width - 40;
-        let maxHeight = tpl.bitmap.height - 40;
-
-        return tpl.print(font,textSettings.placementX, textSettings.placementY, {
-            text: textSettings.text,
-            alignmentX: textSettings.alignmentX,
-            alignmentY: textSettings.alignmentY
-        }, maxWidth, maxHeight);
-
+function AddTextToImage(textSettings, image) {
+    return new Promise((resolve, reject) => {
+        Jimp.read(image)
+        .then(img => (
+            Jimp.loadFont(textSettings.font).then(font => ([img, font]))
+        ))
+        .then(data => {
+            tpl = data[0];
+            font = data[1];
+    
+            let maxWidth = tpl.bitmap.width - 40;
+            let maxHeight = tpl.bitmap.height - 40;
+    
+            return tpl.print(font,textSettings.placementX, textSettings.placementY, {
+                text: textSettings.text,
+                alignmentX: textSettings.alignmentX,
+                alignmentY: textSettings.alignmentY
+            }, maxWidth, maxHeight);
+    
+        })
+        .then(tpl => (tpl.getBufferAsync(Jimp.MIME_JPEG)))
+        .then(imageBuffer => { 
+            console.log('Image generated');
+            resolve(imageBuffer);
+          })
+        .catch(err => {
+            reject(err);
+        })
     })
-    .then(tpl => (tpl.getBufferAsync(Jimp.MIME_JPEG)))
-    .then(imageBuffer => { 
-        console.log('Image generated');
-        callback(imageBuffer);
-      })
-    .catch(err => {
-        console.error(err);
-    })
+
 }

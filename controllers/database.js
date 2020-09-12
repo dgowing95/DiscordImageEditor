@@ -49,24 +49,27 @@ class DatabaseController {
         );
     }
 
-    retrieveTemplate(templateName, guildID, callback) {
+    retrieveTemplate(templateName, guildID) {
         let conn = this.getConnection();
-        conn.query(
-            'SELECT file FROM templates WHERE name = ? AND gid = ? AND active = 1 LIMIT 1 ',
-            [
-                templateName,
-                guildID
-            ],
-            function(error, results, fields) {
-                if (error) { throw error; }
-                if (results.length > 0) {
-                    callback(results[0].file)
-                } else {
-
-                    callback(false);
+        return new Promise((resolve, reject) =>{
+            conn.query(
+                'SELECT file FROM templates WHERE name = ? AND gid = ? AND active = 1 LIMIT 1 ',
+                [
+                    templateName,
+                    guildID
+                ],
+                function(error, results, fields) {
+                    if (error) { reject(error); }
+                    if (results.length > 0) {
+                        resolve(results[0].file)
+                    } else {
+    
+                        reject('No Template found');
+                    }
                 }
-            }
-        )
+            )
+        });
+
     }
 
     countTemplates(guildID, callback) {
@@ -86,24 +89,25 @@ class DatabaseController {
         )
     }
 
-    listTemplates(guildID, callback) {
+    listTemplates(guildID) {
         let conn = this.getConnection();
-
-        conn.query(
-            'SELECT name FROM templates WHERE gid = ? AND active = 1', 
-            guildID,
-            function(error, results, fields) {
-                if (error || !results) {
-                    if (error) { throw error; }
-                    return false;
-                } else {
-                    let names = results.map( (row) => {
-                        return row.name;
-                    })
-                    callback(names);
+        return new Promise((resolve, reject) => {
+            conn.query(
+                'SELECT name FROM templates WHERE gid = ? AND active = 1', 
+                guildID,
+                function(error, results, fields) {
+                    if (error || !results) {
+                        if (error) { reject(error) }
+                    } else {
+                        let names = results.map( (row) => {
+                            return row.name;
+                        })
+                        resolve(names);
+                    }
                 }
-            }
-        )
+            )
+        })
+
     }
 
     disableTemplate(guildID, template, callback) {
@@ -129,7 +133,6 @@ class DatabaseController {
 
     addGuild(guildID, callback) {
         let conn = this.getConnection();
-
         conn.query(
             'INSERT INTO guilds (gid) VALUES (?)',
             guildID,
