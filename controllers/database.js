@@ -72,6 +72,26 @@ class DatabaseController {
 
     }
 
+    isTemplateNameUnique(name, guildID) {
+        let conn = this.getConnection();
+        return new Promise((resolve, reject) => {
+            conn.query(
+                'SELECT name FROM templates where name = ? AND gid = ? AND active = 1',
+                [
+                    name, guildID
+                ],
+                function(error,results) {
+                    if (error) {reject(error); }
+                    if (results.length == 0) {
+                        resolve(true);
+                    } else {
+                        resolve(false)
+                    }
+                }
+            )
+        })
+    }
+
     countTemplates(guildID, callback) {
         let conn = this.getConnection();
 

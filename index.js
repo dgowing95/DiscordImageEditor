@@ -144,7 +144,7 @@ function atCapacity(guildID, callback) {
     })
 }
 
-function addTemplate(msg, data) {
+async function addTemplate(msg, data) {
     if (msg.attachments.size !== 1) {
         msg.reply('You need to attach an image along with the message. !ezm add template-name');
         return;
@@ -159,6 +159,12 @@ function addTemplate(msg, data) {
 
     //Remove spaces from the name they've given this template
     let templateName = data.join('-');
+    let isUnique = await db.isTemplateNameUnique(templateName, msg.guild.id);
+
+    if (!isUnique) {
+        msg.reply('A template already exists with that name. Try naming it something else or remove the old template. !ezm remove template-name');
+        return;
+    }
 
     //Retrieve the URL from discord. Sometimes it's proxied
     let url = '';
