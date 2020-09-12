@@ -170,6 +170,10 @@ async function addTemplate(msg, data) {
 
     //Remove spaces from the name they've given this template
     let templateName = data.join('-');
+    if (! /^[0-9a-zA-Z\-]+$/.test(templateName)) {
+        msg.reply('Please only use letters and numbers in your template names.')
+        return;
+    }
     let isUnique = await db.isTemplateNameUnique(templateName, msg.guild.id);
 
     if (!isUnique) {
