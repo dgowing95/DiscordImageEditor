@@ -8,8 +8,7 @@ AWS.config.update({region: 'EU-WEST-2', accessKeyId: process.env.accessKeyID, se
 
 const DatabaseController = require('./controllers/database.js');
 var db = new DatabaseController();
-const { rejects } = require('assert');
-const { resolve } = require('path');
+
 
 const prefix = '!ezm';
 const allowedTypes = [
@@ -22,12 +21,15 @@ const allowedTypes = [
 ];
 
 const fontsAvailable = [
-    Jimp.FONT_SANS_128_WHITE,
-    Jimp.FONT_SANS_64_WHITE,
-    Jimp.FONT_SANS_32_WHITE,
-    Jimp.FONT_SANS_16_WHITE,
-    Jimp.FONT_SANS_8_WHITE,
-];
+    Jimp.FONT_SANS_8_BLACK,
+    Jimp.FONT_SANS_10_BLACK,
+    Jimp.FONT_SANS_12_BLACK,
+    Jimp.FONT_SANS_14_BLACK,
+    Jimp.FONT_SANS_16_BLACK,
+    Jimp.FONT_SANS_32_BLACK,
+    Jimp.FONT_SANS_64_BLACK,
+    Jimp.FONT_SANS_128_BLACK,
+].reverse();
 
 client.on("guildCreate", guild => {
     db.addGuild(guild.id, (success) => {
@@ -318,6 +320,9 @@ function memeMaker(msg, imageTemplate, text) {
         })
     })
     .catch((err) => {
+        if (err == 'No Template found') {
+            message.channel.send(`I couldn't find a template named ${imageTemplate}`);
+        }
         console.log(err);
     })
 
@@ -380,20 +385,25 @@ function AddTextToImage(textSettings, image) {
             }
             return Jimp.loadFont(fontToUse).then(font => ([img, font]))
         })
-        .then(data => {
+        .then(async (data) => {
             tpl = data[0];
             font = data[1];
     
             let maxWidth = tpl.bitmap.width - 40;
-            //let maxHeight = tpl.bitmap.height - 40;
-    
-            return tpl.print(font,textSettings.placementX, textSettings.placementY, {
+
+            let transparentLayer = await Jimp.create(tpl.bitmap.width, tpl.bitmap.height);
+            let textLayer = await transparentLayer.print(font,textSettings.placementX, textSettings.placementY, {
                 text: textSettings.text,
                 alignmentX: textSettings.alignmentX,
                 alignmentY: 0
             }, maxWidth, tpl.bitmap.height);
+
+            textLayer.color([{ apply: 'xor', params: ['#ffffff'] }]);
+    
+            return tpl.blit(textLayer,0,0);
     
         })
+
         .then(tpl => (tpl.getBufferAsync(Jimp.MIME_JPEG)))
         .then(imageBuffer => { 
             console.log('Image generated');
