@@ -163,7 +163,7 @@ async function addTemplate(msg, data) {
 
     let image = msg.attachments.first();
 
-    if (image.size == null || (image.size /1000) > 5000 ) {
+    if (image.size == null || (image.size /1000) > 10000 ) {
         msg.reply('Filesize too large, please reduce the size of the image and try again.')
         return;
     }
