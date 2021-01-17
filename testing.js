@@ -11,7 +11,7 @@ async function main() {
     }
 
     try {
-        await c.writeText('Comic Sans', 'Some example text which could be a meme');
+        await c.writeText('Comic Sans', 'Meowdy', 'Good Bark');
     } catch (err) {
         console.log(err);
         return ("Couldn't write text");

@@ -57,9 +57,14 @@ class Meme {
         return this.context.font;
     }
 
-    async writeText(font, text) {
-        this.context.font = this.getFontSize(font ,text);
-        this.context.fillText(text, this.width/2, this.height*0.10);
+    async writeText(font, upperText, lowerText = '') {
+        this.context.font = this.getFontSize(font,upperText);
+        this.context.fillText(upperText, this.width/2, this.height*0.15);
+
+        if (lowerText.length > 0) {
+            this.context.font = this.getFontSize(font,lowerText);
+            this.context.fillText(lowerText, this.width/2, this.height *0.95);
+        }
     }
 
     exportToFile() {
