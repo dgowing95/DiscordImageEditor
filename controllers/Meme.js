@@ -35,6 +35,8 @@ class Meme {
                 this.height = image.height
                 this.context = this.canvas.getContext('2d');
                 this.context.drawImage(image,0,0);
+                this.context.fillStyle = '#FFFFFF';
+                this.context.textAlign = 'center';
                 resolve();
             }.bind(this))
 
@@ -45,9 +47,19 @@ class Meme {
         }.bind(this))
     }
 
+    getFontSize(font, text) {
+        let fontSize = 100;
+
+        do {
+            this.context.font = `${fontSize -= 10}px "${font}"`;
+        } while (this.context.measureText(text).width > this.width - 300);
+
+        return this.context.font;
+    }
+
     async writeText(font, text) {
-        this.context.font = `64px ${font}`;
-        this.context.fillText(text, this.width/2.5, 100);
+        this.context.font = this.getFontSize(font ,text);
+        this.context.fillText(text, this.width/2, this.height*0.10);
     }
 
     exportToFile() {
