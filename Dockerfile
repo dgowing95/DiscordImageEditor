@@ -9,4 +9,5 @@ COPY controllers ./controllers
 COPY index.js .
 CMD [ "node", "--trace-warnings", "index.js"]
 
+EXPOSE 80
 
