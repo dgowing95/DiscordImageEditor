@@ -4,6 +4,7 @@ var Discord = require('discord.js');
 const client = new Discord.Client();
 const fs = require('fs');
 const AWS = require('aws-sdk');
+const Meme = require('./controllers/Meme.js');
 AWS.config.update({region: 'EU-WEST-2', accessKeyId: process.env.accessKeyID, secretAccessKey: process.env.secretAccessKey});
 
 const DatabaseController = require('./controllers/database.js');
@@ -20,16 +21,16 @@ const allowedTypes = [
     'image/tiff'
 ];
 
-const fontsAvailable = [
-    Jimp.FONT_SANS_8_BLACK,
-    Jimp.FONT_SANS_10_BLACK,
-    Jimp.FONT_SANS_12_BLACK,
-    Jimp.FONT_SANS_14_BLACK,
-    Jimp.FONT_SANS_16_BLACK,
-    Jimp.FONT_SANS_32_BLACK,
-    Jimp.FONT_SANS_64_BLACK,
-    Jimp.FONT_SANS_128_BLACK,
-].reverse();
+// const fontsAvailable = [
+//     Jimp.FONT_SANS_8_BLACK,
+//     Jimp.FONT_SANS_10_BLACK,
+//     Jimp.FONT_SANS_12_BLACK,
+//     Jimp.FONT_SANS_14_BLACK,
+//     Jimp.FONT_SANS_16_BLACK,
+//     Jimp.FONT_SANS_32_BLACK,
+//     Jimp.FONT_SANS_64_BLACK,
+//     Jimp.FONT_SANS_128_BLACK,
+// ].reverse();
 
 client.on("guildCreate", guild => {
     db.addGuild(guild.id, (success) => {
@@ -300,36 +301,22 @@ function memeMaker(msg, imageTemplate, text) {
             })
         })
     })
-
-    .then ((imageBuffer) => {
-        //Create Meme with Jimp
-        let textSettings = {
-            text: text,
-            alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
-            alignmentY: Jimp.VERTICAL_ALIGN_TOP,
-            placementX: 20,
-            placementY: 10,
-        };
-
-        //Generate the meme, and pass it into a callback that returns the image
-        return AddTextToImage(textSettings, imageBuffer);
-    })
-
-    .then((meme) => {
-        //Send meme to discord
-        message.channel.send( {
-            files: [
-                meme
-            ]
+    .then( (imageBuffer) => {
+        let meme = new Meme();
+        meme.loadImage(imageBuffer)
+        .then(() => meme.writeText('Comic Sans', text))
+        .then(() => {
+            message.channel.send({
+                files: [
+                    meme.exportBuffer()
+                ]
+            })
         })
+        .catch((err) => console.log('General Meme Error:' + err))
     })
-    .catch((err) => {
-        if (err == 'No Template found') {
-            message.channel.send(`I couldn't find a template named ${imageTemplate}`);
-        }
-        console.log(err);
+    .catch (err => {
+        console.log('Template load error: ' + err);
     })
-
 
 }
 
