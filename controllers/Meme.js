@@ -35,7 +35,8 @@ class Meme {
                 this.height = image.height
                 this.context = this.canvas.getContext('2d');
                 this.context.drawImage(image,0,0);
-                this.context.fillStyle = '#FFFFFF';
+                this.context.fillStyle = '#f79a28';
+                //this.context.strokeStyle = '#00000';
                 this.context.textAlign = 'center';
                 resolve();
             }.bind(this))
@@ -60,10 +61,12 @@ class Meme {
     async writeText(font, upperText, lowerText = '') {
         this.context.font = this.getFontSize(font,upperText);
         this.context.fillText(upperText, this.width/2, this.height*0.15);
+        this.context.strokeText(upperText, this.width/2, this.height*0.15);
 
         if (lowerText.length > 0) {
             this.context.font = this.getFontSize(font,lowerText);
             this.context.fillText(lowerText, this.width/2, this.height *0.95);
+            this.context.strokeText(lowerText, this.width/2, this.height *0.95);
         }
     }
 
