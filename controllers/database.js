@@ -231,5 +231,51 @@ class DatabaseController {
         )
     }
 
+    getFonts() {
+        let conn = this.getConnection();
+        return new Promise((resolve, reject) => {
+            conn.query(
+                'SELECT font_name, font_file_name FROM fonts',
+                function(error, results, fields) {
+                    if (error || !results) {
+                        if (error) { reject(error) }
+                    } else {
+                        resolve(results);
+                    }
+                }
+            )
+        })
+    }
+
+    getUserConfs(userId) {
+        let conn = this.getConnection();
+        return new Promise((resolve, reject) => {
+            conn.query(
+                `SELECT
+                    uc.*, font_name
+                FROM 
+                    user_configs as uc LEFT JOIN
+                    fonts as f on f.font_id = uc.text_font
+                WHERE 
+                    user_id = ? 
+                LIMIT 1`,
+                [
+                    userId
+                ],
+                function(error, results, fields) {
+                    if (error || !results) {
+                        if (error) { reject(error) }
+                    } else {
+                        if (results.length === 1 ) {
+                            resolve(results[0]);
+                        } else {
+                            reject('No user preferences found');
+                        }
+                    }
+                }
+            )
+        })
+    }
+
 }
 module.exports = DatabaseController;

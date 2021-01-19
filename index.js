@@ -301,10 +301,14 @@ function memeMaker(msg, imageTemplate, text) {
             })
         })
     })
-    .then( (imageBuffer) => {
-        let meme = new Meme();
+    .then( async(imageBuffer) => {
+        let meme = new Meme(db, message.member.id);
+        await meme.registerFonts();
         meme.loadImage(imageBuffer)
-        .then(() => meme.writeText('Comic Sans', text))
+        .then(async() => {
+            await meme.getUserConfs();
+            meme.writeText(text)
+        })
         .then(() => {
             message.channel.send({
                 files: [
