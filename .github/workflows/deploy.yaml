@@ -1,0 +1,24 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  
+jobs:
+  Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          docker build . -t ${{ secrets.REPO_URL}}/ezmeme:latest -t ${{ secrets.REPO_URL }}/ezmeme:${{ github.sha }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          aws-access-key-id: ${{ secrets.KEY }}
+          aws-secret-access-key: ${{ secrets.SECRET }}
+          aws-region: eu-north-1
+
+      - run: |
+          docker push --all-tags ${{ secrets.REPO_URL}}/ezmeme
